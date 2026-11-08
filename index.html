@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GradeSync – Student Academic Planner & GPA Calculator</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              50:  '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          },
+          boxShadow: {
+            card: '0 1px 3px 0 rgb(0 0 0 / .06), 0 1px 2px -1px rgb(0 0 0 / .06)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Supabase JS SDK v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Project Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body class="bg-slate-50 dark:bg-slate-950 font-sans text-slate-700 dark:text-slate-300 antialiased transition-colors duration-300" id="body">
+
+<!-- ═══════════════════════════════════════════════════
+     AUTH SCREEN (shown when not logged in)
+════════════════════════════════════════════════════ -->
+<div id="auth-screen" class="hidden min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
+  <!-- Animated background blobs -->
+  <div class="pointer-events-none fixed inset-0 overflow-hidden">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <!-- Auth Card -->
+  <div class="relative w-full max-w-md z-10">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 shadow-lg shadow-indigo-200 dark:shadow-indigo-950/50 mb-4 group hover:scale-105 transition-transform duration-300">
+        <div class="relative flex items-center justify-center">
+          <i class="fa-solid fa-graduation-cap text-2xl text-white"></i>
+          <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center">
+            <i class="fa-solid fa-rotate text-[8px] text-emerald-950 font-bold"></i>
+          </span>
+        </div>
+      </div>
+      <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center justify-center gap-1">
+        <span>Grade</span><span class="bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">Sync</span>
+      </h1>
+      <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Smart Academic Planner & GPA Synchronizer</p>
+    </div>
+
+    <!-- Glass Card -->
+    <div class="glass-card rounded-2xl p-8 shadow-xl border border-white/60 dark:border-slate-700/60">
+      <!-- Tab Switcher -->
+      <div class="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 mb-7 gap-1">
+        <button id="tab-login" onclick="switchAuthTab('login')"
+          class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm">
+          Sign In
+        </button>
+        <button id="tab-signup" onclick="switchAuthTab('signup')"
+          class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+          Create Account
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="space-y-4" onsubmit="handleLogin(event)">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="fa-solid fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="email" id="login-email" placeholder="student@university.edu"
+              class="auth-input pl-9" required />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="password" id="login-password" placeholder="••••••••"
+              class="auth-input pl-9" required />
+            <button type="button" onclick="togglePasswordVisibility('login-password', this)"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <i class="fa-solid fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+        <div id="login-error" class="hidden auth-error"></div>
+        <button type="submit" id="login-btn" class="btn-primary w-full mt-2">
+          <span class="btn-text">Sign In</span>
+          <span class="btn-loader hidden"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Signing in…</span>
+        </button>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" class="hidden space-y-4" onsubmit="handleSignup(event)">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">Full Name</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="signup-name" placeholder="Arjun Kumar"
+              class="auth-input pl-9" required />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="fa-solid fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="email" id="signup-email" placeholder="student@university.edu"
+              class="auth-input pl-9" required />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="password" id="signup-password" placeholder="Min. 8 characters"
+              class="auth-input pl-9" required minlength="8" />
+            <button type="button" onclick="togglePasswordVisibility('signup-password', this)"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <i class="fa-solid fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+        <div id="signup-error" class="hidden auth-error"></div>
+        <div id="signup-success" class="hidden auth-success"></div>
+        <button type="submit" id="signup-btn" class="btn-primary w-full mt-2">
+          <span class="btn-text">Create Account</span>
+          <span class="btn-loader hidden"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Creating…</span>
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="flex items-center gap-3 my-5">
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        <span class="text-xs text-slate-400 font-medium">OR</span>
+        <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+      </div>
+
+      <!-- Guest Mode -->
+      <button onclick="continueAsGuest()" class="w-full py-2.5 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-user-secret text-slate-400"></i>
+        Continue as Guest (Local Storage)
+      </button>
+
+      <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-5">
+        Guest data is stored locally and not synced across devices.
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     MAIN APP (shown after auth)
+════════════════════════════════════════════════════ -->
+<div id="app-screen" class="hidden">
+
+  <!-- ── MOBILE HEADER ── -->
+  <header class="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 h-16 flex items-center px-4 gap-3">
+    <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+      <i class="fa-solid fa-bars text-slate-600 dark:text-slate-300 text-lg"></i>
+    </button>
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-sm">
+        <i class="fa-solid fa-graduation-cap text-white text-xs"></i>
+      </div>
+      <span class="font-extrabold text-slate-900 dark:text-white text-base tracking-tight">Grade<span class="text-indigo-600 dark:text-indigo-400">Sync</span></span>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <button onclick="toggleDarkMode()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <i id="dark-icon-mobile" class="fa-solid fa-moon text-slate-500 dark:text-slate-400"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── MOBILE OVERLAY ── -->
+  <div id="mobile-overlay" class="hidden lg:hidden fixed inset-0 z-20 bg-black/50 backdrop-blur-sm" onclick="toggleMobileMenu()"></div>
+
+  <!-- ── SIDEBAR ── -->
+  <aside id="sidebar"
+    class="fixed top-0 left-0 h-full w-64 z-30 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col
+           -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+
+    <!-- Sidebar Header -->
+    <div class="h-16 flex items-center px-5 border-b border-slate-100 dark:border-slate-800 gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-md shadow-indigo-200 dark:shadow-indigo-950/50">
+        <i class="fa-solid fa-graduation-cap text-white text-base"></i>
+      </div>
+      <div>
+        <span class="font-extrabold text-slate-900 dark:text-white text-base leading-none block tracking-tight">Grade<span class="text-indigo-600 dark:text-indigo-400">Sync</span></span>
+        <span class="text-[11px] font-medium text-slate-400">Academic & GPA Hub</span>
+      </div>
+    </div>
+
+    <!-- User info -->
+    <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+      <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+        <div id="user-avatar" class="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm flex-shrink-0">
+          A
+        </div>
+        <div class="min-w-0">
+          <p id="user-name-display" class="text-sm font-semibold text-slate-900 dark:text-white truncate">Student</p>
+          <p id="user-email-display" class="text-xs text-slate-400 truncate">guest@local</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
+      <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-3 mb-2">Main Menu</p>
+
+      <button onclick="switchTab('dashboard')" data-tab="dashboard"
+        class="nav-item active">
+        <i class="fa-solid fa-house-chimney w-5 text-center"></i>
+        <span>Dashboard</span>
+      </button>
+
+      <button onclick="switchTab('gpa')" data-tab="gpa"
+        class="nav-item">
+        <i class="fa-solid fa-chart-line w-5 text-center"></i>
+        <span>GPA Calculator</span>
+      </button>
+
+      <button onclick="switchTab('tasks')" data-tab="tasks"
+        class="nav-item">
+        <i class="fa-solid fa-list-check w-5 text-center"></i>
+        <span>Task Tracker</span>
+        <span id="task-badge" class="hidden ml-auto text-xs font-bold bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center"></span>
+      </button>
+
+      <button onclick="switchTab('timetable')" data-tab="timetable"
+        class="nav-item">
+        <i class="fa-solid fa-calendar-week w-5 text-center"></i>
+        <span>Timetable</span>
+      </button>
+
+      <div class="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
+        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-3 mb-2">Settings</p>
+        <button onclick="switchTab('settings')" data-tab="settings"
+          class="nav-item">
+          <i class="fa-solid fa-gear w-5 text-center"></i>
+          <span>Settings & Export</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="px-3 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3 space-y-1">
+      <button onclick="toggleDarkMode()" class="nav-item w-full">
+        <i id="dark-icon-sidebar" class="fa-solid fa-moon w-5 text-center"></i>
+        <span id="dark-mode-label">Dark Mode</span>
+      </button>
+      <button onclick="handleLogout()" class="nav-item w-full text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600">
+        <i class="fa-solid fa-right-from-bracket w-5 text-center"></i>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── MAIN CONTENT AREA ── -->
+  <main class="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
+
+    <!-- ══════════════════════════════
+         DASHBOARD TAB
+    ══════════════════════════════ -->
+    <div id="tab-dashboard" class="tab-panel p-6 max-w-7xl mx-auto">
+      <!-- Page Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Good <span id="greeting-time">Morning</span>, <span id="greeting-name">Student</span>! 👋</h2>
+          <p id="current-date-display" class="text-slate-500 dark:text-slate-400 text-sm mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="session-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="session-type">Guest Session</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- CGPA Card -->
+        <div class="stat-card col-span-2 sm:col-span-1">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="stat-label">Current CGPA</p>
+              <p id="dash-cgpa" class="stat-value text-indigo-600 dark:text-indigo-400">—</p>
+              <p class="text-xs text-slate-400 mt-1">/ 10.0 scale</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 flex items-center justify-center">
+              <i class="fa-solid fa-star text-indigo-500 text-base"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Courses Card -->
+        <div class="stat-card">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="stat-label">Total Courses</p>
+              <p id="dash-courses" class="stat-value text-slate-800 dark:text-white">0</p>
+              <p class="text-xs text-slate-400 mt-1">across all semesters</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center">
+              <i class="fa-solid fa-book text-blue-500 text-base"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks Due Card -->
+        <div class="stat-card">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="stat-label">Tasks Due Soon</p>
+              <p id="dash-tasks-due" class="stat-value text-amber-600 dark:text-amber-400">0</p>
+              <p class="text-xs text-slate-400 mt-1">within 48 hours</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
+              <i class="fa-solid fa-clock text-amber-500 text-base"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Tasks -->
+        <div class="stat-card">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="stat-label">Tasks Done</p>
+              <p id="dash-tasks-done" class="stat-value text-emerald-600 dark:text-emerald-400">0</p>
+              <p class="text-xs text-slate-400 mt-1">this semester</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center">
+              <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Today's Agenda -->
+        <div class="lg:col-span-2 card">
+          <div class="card-header">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-calendar-day text-indigo-500"></i>
+              <h3 class="card-title">Today's Agenda</h3>
+            </div>
+            <span id="today-day-label" class="text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full"></span>
+          </div>
+          <div id="today-agenda-list" class="space-y-2 mt-4">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Urgent Tasks Widget -->
+        <div class="card">
+          <div class="card-header">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+              <h3 class="card-title">Due Soon</h3>
+            </div>
+          </div>
+          <div id="urgent-tasks-list" class="space-y-2 mt-4">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         GPA CALCULATOR TAB
+    ══════════════════════════════ -->
+    <div id="tab-gpa" class="tab-panel hidden p-6 max-w-7xl mx-auto">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white">GPA Calculator</h2>
+          <p class="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Track your SGPA per semester and cumulative CGPA</p>
+        </div>
+        <button onclick="addSemester()" class="btn-primary flex-shrink-0">
+          <i class="fa-solid fa-plus mr-2"></i> Add Semester
+        </button>
+      </div>
+
+      <!-- GPA Scorecard -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="sm:col-span-2 card bg-gradient-to-br from-indigo-600 to-purple-600 border-0 text-white overflow-hidden relative">
+          <div class="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+          <div class="relative flex items-center justify-around py-2">
+            <div class="text-center">
+              <div class="gpa-ring" id="cgpa-ring">
+                <svg viewBox="0 0 80 80" class="w-24 h-24 -rotate-90">
+                  <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.2)" stroke-width="6" fill="none"/>
+                  <circle id="cgpa-arc" cx="40" cy="40" r="34" stroke="white" stroke-width="6" fill="none"
+                    stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                    class="transition-all duration-700 ease-out"/>
+                </svg>
+                <div class="gpa-ring-inner">
+                  <span id="cgpa-display" class="text-2xl font-bold text-white">—</span>
+                </div>
+              </div>
+              <p class="text-indigo-200 text-sm font-medium mt-2">CGPA</p>
+            </div>
+            <div class="w-px h-20 bg-white/20"></div>
+            <div class="text-center">
+              <div class="gpa-ring" id="sgpa-ring">
+                <svg viewBox="0 0 80 80" class="w-24 h-24 -rotate-90">
+                  <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.2)" stroke-width="6" fill="none"/>
+                  <circle id="sgpa-arc" cx="40" cy="40" r="34" stroke="#a5b4fc" stroke-width="6" fill="none"
+                    stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                    class="transition-all duration-700 ease-out"/>
+                </svg>
+                <div class="gpa-ring-inner">
+                  <span id="sgpa-display" class="text-2xl font-bold text-white">—</span>
+                </div>
+              </div>
+              <p class="text-indigo-200 text-sm font-medium mt-2">Latest SGPA</p>
+            </div>
+            <div class="w-px h-20 bg-white/20"></div>
+            <div class="text-center space-y-1">
+              <div class="text-3xl font-bold" id="total-credits-display">0</div>
+              <p class="text-indigo-200 text-sm">Total Credits</p>
+              <div class="text-3xl font-bold" id="total-semesters-display">0</div>
+              <p class="text-indigo-200 text-sm">Semesters</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target GPA Estimator -->
+        <div class="card">
+          <div class="card-header">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-bullseye text-indigo-500"></i>
+              <h3 class="card-title">Target CGPA</h3>
+            </div>
+          </div>
+          <div class="mt-4 space-y-3">
+            <div>
+              <label class="text-xs text-slate-500 dark:text-slate-400 font-medium">My Target CGPA</label>
+              <input type="number" id="target-cgpa-input" placeholder="e.g. 9.0" min="0" max="10" step="0.1"
+                class="form-input mt-1" oninput="calcTargetGPA()" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 dark:text-slate-400 font-medium">Remaining Semesters</label>
+              <input type="number" id="remaining-semesters-input" placeholder="e.g. 4" min="1" step="1"
+                class="form-input mt-1" oninput="calcTargetGPA()" />
+            </div>
+            <div id="target-result" class="hidden p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800">
+              <p class="text-xs text-indigo-500 dark:text-indigo-400 font-medium">Required avg. SGPA</p>
+              <p id="target-result-value" class="text-2xl font-bold text-indigo-600 dark:text-indigo-300 mt-0.5"></p>
+              <p id="target-result-msg" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grade Scale Reference -->
+      <div class="card mb-6">
+        <details>
+          <summary class="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 select-none">
+            <i class="fa-solid fa-table-list text-indigo-500"></i> Grade Scale Reference (10-point scale)
+            <i class="fa-solid fa-chevron-down ml-auto text-slate-400 text-xs"></i>
+          </summary>
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead>
+                <tr class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
+                  <th class="pb-2 pr-4">Letter Grade</th>
+                  <th class="pb-2 pr-4">Grade Points</th>
+                  <th class="pb-2">Percentage Range</th>
+                </tr>
+              </thead>
+              <tbody id="grade-scale-table" class="divide-y divide-slate-50 dark:divide-slate-800">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <!-- Semesters Container -->
+      <div id="semesters-container" class="space-y-4">
+        <!-- Semesters added dynamically -->
+      </div>
+
+      <!-- GPA Empty State -->
+      <div id="gpa-empty-state" class="empty-state">
+        <div class="w-20 h-20 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mx-auto mb-4">
+          <i class="fa-solid fa-chart-line text-3xl text-indigo-400"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No Semesters Yet</h3>
+        <p class="text-slate-400 text-sm mb-5 max-w-xs">Add your first semester to start calculating your GPA and tracking academic progress.</p>
+        <button onclick="addSemester()" class="btn-primary">
+          <i class="fa-solid fa-plus mr-2"></i> Add First Semester
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ══════════════════════════════
+         TASK TRACKER TAB
+    ══════════════════════════════ -->
+    <div id="tab-tasks" class="tab-panel hidden p-6 max-w-7xl mx-auto">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Task Tracker</h2>
+          <p class="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage assignments, exams, and deadlines</p>
+        </div>
+        <button onclick="openTaskModal()" class="btn-primary flex-shrink-0">
+          <i class="fa-solid fa-plus mr-2"></i> Add Task
+        </button>
+      </div>
+
+      <!-- Urgent Banner -->
+      <div id="urgent-banner" class="hidden mb-5 p-4 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 flex items-start gap-3">
+        <i class="fa-solid fa-siren-on text-rose-500 mt-0.5"></i>
+        <div>
+          <p class="text-sm font-semibold text-rose-700 dark:text-rose-400">Heads up! You have <span id="urgent-count">0</span> task(s) due within 48 hours.</p>
+          <p id="urgent-task-names" class="text-xs text-rose-500 dark:text-rose-400 mt-0.5"></p>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="flex flex-wrap gap-2 mb-5">
+        <button onclick="filterTasks('all')" data-filter="all" class="filter-btn active">All</button>
+        <button onclick="filterTasks('todo')" data-filter="todo" class="filter-btn">To Do</button>
+        <button onclick="filterTasks('in-progress')" data-filter="in-progress" class="filter-btn">In Progress</button>
+        <button onclick="filterTasks('done')" data-filter="done" class="filter-btn">Done</button>
+        <div class="flex-1"></div>
+        <select id="priority-filter" onchange="filterTasks(document.querySelector('.filter-btn.active').dataset.filter)" class="text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <option value="">All Priorities</option>
+          <option value="high">High Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="low">Low Priority</option>
+        </select>
+      </div>
+
+      <!-- Kanban Columns -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- To Do -->
+        <div class="kanban-col">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-2.5 h-2.5 rounded-full bg-slate-400"></div>
+            <h3 class="font-semibold text-slate-700 dark:text-slate-300 text-sm">TO DO</h3>
+            <span id="todo-count" class="ml-auto text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 w-6 h-6 rounded-full flex items-center justify-center">0</span>
+          </div>
+          <div id="todo-col" class="space-y-3 min-h-16"></div>
+        </div>
+
+        <!-- In Progress -->
+        <div class="kanban-col">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+            <h3 class="font-semibold text-slate-700 dark:text-slate-300 text-sm">IN PROGRESS</h3>
+            <span id="inprogress-count" class="ml-auto text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 w-6 h-6 rounded-full flex items-center justify-center">0</span>
+          </div>
+          <div id="inprogress-col" class="space-y-3 min-h-16"></div>
+        </div>
+
+        <!-- Done -->
+        <div class="kanban-col">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+            <h3 class="font-semibold text-slate-700 dark:text-slate-300 text-sm">DONE</h3>
+            <span id="done-count" class="ml-auto text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 w-6 h-6 rounded-full flex items-center justify-center">0</span>
+          </div>
+          <div id="done-col" class="space-y-3 min-h-16"></div>
+        </div>
+      </div>
+
+      <!-- Tasks Empty State -->
+      <div id="tasks-empty-state" class="empty-state mt-10">
+        <div class="w-20 h-20 rounded-2xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+          <i class="fa-solid fa-list-check text-3xl text-amber-400"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No Tasks Yet!</h3>
+        <p class="text-slate-400 text-sm mb-5 max-w-xs">Add your first assignment or exam to start tracking deadlines and progress.</p>
+        <button onclick="openTaskModal()" class="btn-primary">
+          <i class="fa-solid fa-plus mr-2"></i> Add First Task
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ══════════════════════════════
+         TIMETABLE TAB
+    ══════════════════════════════ -->
+    <div id="tab-timetable" class="tab-panel hidden p-6 max-w-7xl mx-auto">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Weekly Timetable</h2>
+          <p class="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Monday – Saturday class schedule</p>
+        </div>
+        <button onclick="openClassModal()" class="btn-primary flex-shrink-0">
+          <i class="fa-solid fa-plus mr-2"></i> Add Class
+        </button>
+      </div>
+
+      <!-- Today's Classes Widget -->
+      <div class="card mb-6">
+        <div class="card-header">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-sun text-amber-400"></i>
+            <h3 class="card-title">Today's Classes</h3>
+          </div>
+          <span id="tt-today-label" class="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800"></span>
+        </div>
+        <div id="today-classes-list" class="mt-4 flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Week Grid -->
+      <div class="card overflow-x-auto">
+        <div id="timetable-grid" class="timetable-grid min-w-[700px]">
+          <!-- Generated by JS -->
+        </div>
+      </div>
+
+      <!-- Timetable Empty State -->
+      <div id="timetable-empty-state" class="hidden empty-state mt-8">
+        <div class="w-20 h-20 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
+          <i class="fa-solid fa-calendar-week text-3xl text-blue-400"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No Classes Scheduled</h3>
+        <p class="text-slate-400 text-sm mb-5 max-w-xs">Add your first class to build your weekly timetable.</p>
+        <button onclick="openClassModal()" class="btn-primary">
+          <i class="fa-solid fa-plus mr-2"></i> Add First Class
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ══════════════════════════════
+         SETTINGS TAB
+    ══════════════════════════════ -->
+    <div id="tab-settings" class="tab-panel hidden p-6 max-w-3xl mx-auto">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Settings & Export</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage your account and data</p>
+      </div>
+
+      <!-- Profile Section -->
+      <div class="card mb-5">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-user-circle text-indigo-500"></i> Profile
+        </h3>
+        <div class="flex items-center gap-4 mb-4">
+          <div id="settings-avatar" class="w-14 h-14 rounded-2xl bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-2xl font-bold text-indigo-600 dark:text-indigo-400">A</div>
+          <div>
+            <p id="settings-name" class="font-semibold text-slate-900 dark:text-white text-base">Student</p>
+            <p id="settings-email" class="text-sm text-slate-500 dark:text-slate-400">guest@local</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Display Name</label>
+            <input type="text" id="settings-display-name" class="form-input" placeholder="Your name" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">University</label>
+            <input type="text" id="settings-university" class="form-input" placeholder="e.g. IIT Bombay" />
+          </div>
+        </div>
+        <button onclick="saveProfile()" class="btn-primary mt-4">
+          <i class="fa-solid fa-save mr-2"></i> Save Profile
+        </button>
+      </div>
+
+      <!-- Appearance -->
+      <div class="card mb-5">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-palette text-indigo-500"></i> Appearance
+        </h3>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Dark Mode</p>
+            <p class="text-xs text-slate-400">Toggle between light and dark themes</p>
+          </div>
+          <button onclick="toggleDarkMode()" id="dark-toggle-btn"
+            class="relative w-12 h-6 rounded-full bg-slate-200 dark:bg-indigo-600 transition-colors duration-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <span class="absolute top-0.5 left-0.5 dark:left-6 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Data Management -->
+      <div class="card mb-5">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-database text-indigo-500"></i> Data Management
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button onclick="loadSampleDemoData()" class="settings-btn text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 sm:col-span-2">
+            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Load Demo / Presentation Data (Instant Fill)
+          </button>
+          <button onclick="exportData()" class="settings-btn text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+            <i class="fa-solid fa-download mr-2"></i> Export Data (JSON)
+          </button>
+          <label class="settings-btn text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+            <i class="fa-solid fa-upload mr-2"></i> Import Data
+            <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)" />
+          </label>
+          <button onclick="clearAllData()" class="settings-btn text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 sm:col-span-2">
+            <i class="fa-solid fa-trash mr-2"></i> Clear All Data (Reset)
+          </button>
+        </div>
+      </div>
+
+      <!-- Grade Scale Config -->
+      <div class="card">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-500"></i> GPA Scale
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">Currently using a 10-point grading scale (Indian university standard)</p>
+        <div class="flex gap-2">
+          <button onclick="setGpaScale(10)" class="flex-1 py-2 text-xs font-semibold rounded-lg border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">10-Point Scale</button>
+          <button onclick="setGpaScale(4)" class="flex-1 py-2 text-xs font-semibold rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-all">4-Point Scale</button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div><!-- /#app-screen -->
+
+
+<!-- ═══════════════════════════════════════════════════
+     TOAST NOTIFICATION
+════════════════════════════════════════════════════ -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+  <div class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border text-sm font-medium max-w-xs" id="toast-inner">
+    <i id="toast-icon" class="text-base"></i>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     ADD TASK MODAL
+════════════════════════════════════════════════════ -->
+<div id="task-modal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white" id="task-modal-title">Add New Task</h3>
+      <button onclick="closeTaskModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+        <i class="fa-solid fa-xmark text-slate-400"></i>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">Task Title *</label>
+        <input type="text" id="task-title-input" class="form-input" placeholder="e.g. Data Structures Assignment 3" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">Subject</label>
+          <input type="text" id="task-subject-input" class="form-input" placeholder="e.g. CS301" />
+        </div>
+        <div>
+          <label class="form-label">Type</label>
+          <select id="task-type-input" class="form-input">
+            <option value="assignment">Assignment</option>
+            <option value="exam">Exam</option>
+            <option value="project">Project</option>
+            <option value="quiz">Quiz</option>
+            <option value="lab">Lab Work</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">Priority</label>
+          <select id="task-priority-input" class="form-input">
+            <option value="high">🔴 High</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select id="task-status-input" class="form-input">
+            <option value="todo">To Do</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Due Date & Time</label>
+        <input type="datetime-local" id="task-due-input" class="form-input" />
+      </div>
+      <div>
+        <label class="form-label">Notes</label>
+        <textarea id="task-notes-input" class="form-input h-20 resize-none" placeholder="Optional notes…"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeTaskModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Cancel</button>
+      <button onclick="saveTask()" class="flex-1 btn-primary">
+        <span id="task-save-btn-text">Save Task</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     ADD CLASS MODAL
+════════════════════════════════════════════════════ -->
+<div id="class-modal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Add Class to Timetable</h3>
+      <button onclick="closeClassModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+        <i class="fa-solid fa-xmark text-slate-400"></i>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">Course Name *</label>
+          <input type="text" id="class-name-input" class="form-input" placeholder="e.g. Data Structures" />
+        </div>
+        <div>
+          <label class="form-label">Room / Location</label>
+          <input type="text" id="class-room-input" class="form-input" placeholder="e.g. LH-101" />
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Day of Week *</label>
+        <div class="flex gap-2 flex-wrap">
+          <label id="day-Mon" class="day-pill"><input type="checkbox" value="Mon" class="hidden day-cb" /> Mon</label>
+          <label id="day-Tue" class="day-pill"><input type="checkbox" value="Tue" class="hidden day-cb" /> Tue</label>
+          <label id="day-Wed" class="day-pill"><input type="checkbox" value="Wed" class="hidden day-cb" /> Wed</label>
+          <label id="day-Thu" class="day-pill"><input type="checkbox" value="Thu" class="hidden day-cb" /> Thu</label>
+          <label id="day-Fri" class="day-pill"><input type="checkbox" value="Fri" class="hidden day-cb" /> Fri</label>
+          <label id="day-Sat" class="day-pill"><input type="checkbox" value="Sat" class="hidden day-cb" /> Sat</label>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">Start Time *</label>
+          <input type="time" id="class-start-input" class="form-input" />
+        </div>
+        <div>
+          <label class="form-label">End Time *</label>
+          <input type="time" id="class-end-input" class="form-input" />
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Color</label>
+        <div class="flex gap-2 flex-wrap" id="color-picker">
+          <!-- colors added by JS -->
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeClassModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Cancel</button>
+      <button onclick="saveClass()" class="flex-1 btn-primary">Save Class</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     CONFIRM DIALOG
+════════════════════════════════════════════════════ -->
+<div id="confirm-dialog" class="modal-overlay hidden">
+  <div class="modal-card max-w-sm text-center">
+    <div class="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center mx-auto mb-4">
+      <i class="fa-solid fa-triangle-exclamation text-rose-500 text-2xl"></i>
+    </div>
+    <h3 id="confirm-title" class="text-lg font-bold text-slate-900 dark:text-white mb-2">Are you sure?</h3>
+    <p id="confirm-message" class="text-sm text-slate-500 dark:text-slate-400 mb-6">This action cannot be undone.</p>
+    <div class="flex gap-3">
+      <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Cancel</button>
+      <button id="confirm-ok-btn" class="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-sm font-semibold text-white transition-all">Delete</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     JS FILES — Order matters: auth → gpa → tasks → app
+════════════════════════════════════════════════════ -->
+<script src="js/auth.js"></script>
+<script src="js/gpa.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

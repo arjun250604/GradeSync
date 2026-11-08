@@ -1,0 +1,19 @@
+# Dependencies & Environment
+.env
+.env.local
+.env.*.local
+node_modules/
+
+# IDE & Editor files
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
